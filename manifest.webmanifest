@@ -3,11 +3,11 @@
   "short_name": "לוח פעילות",
   "lang": "he",
   "dir": "rtl",
-  "start_url": "./app.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0B6E5F",
-  "theme_color": "#0B6E5F",
+  "background_color": "#35173F",
+  "theme_color": "#35173F",
   "icons": [
     {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
     {"src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png"}

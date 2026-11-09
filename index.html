@@ -4,36 +4,85 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>לוח פעילות</title>
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="לוח פעילות">
-<meta name="theme-color" content="#0B6E5F">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#35173F">
 <style>
-html,body{margin:0;min-height:100%;background:#0B6E5F;color:#fff;font-family:Arial,sans-serif}
-body{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;box-sizing:border-box;text-align:center}
-.box{max-width:340px}
-img{width:96px;height:96px;border-radius:20px;margin-bottom:16px}
-h1{font-size:22px;margin:0 0 12px}
-p{font-size:16px;line-height:1.5;margin:8px 0}
-a.btn{display:block;margin:20px 0 12px;padding:14px;border-radius:12px;background:#fff;color:#0B6E5F;font-weight:bold;font-size:18px;text-decoration:none}
-.hint{background:rgba(255,255,255,.14);border-radius:12px;padding:12px;font-size:15px}
+html,body{margin:0;min-height:100%;background:#35173F;color:#fff;font-family:Arial,sans-serif}
+body{display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center}
+#msg{font-size:18px;padding:24px}
 </style>
 </head>
 <body>
-<div class="box">
-<img src="apple-touch-icon.png" alt="">
-<h1>לוח פעילות שבועי</h1>
-<a class="btn" id="go" href="https://script.google.com/macros/s/AKfycbzCUiuq-UOI3A7BjGFiJmYDOuRp-hA0x927z90yHnghk6tRRScxyCCe3hIhbfVqkWimzA/exec">פתיחת הלוח</a>
-<div class="hint" id="hint">
-<p><b>להוספה למסך הבית:</b></p>
-<p>לוחצים על כפתור השיתוף ובוחרים "הוסף למסך הבית". אחרי ההוספה, הפתיחה מהאייקון תעביר ישר ללוח.</p>
-</div>
-</div>
+<div id="msg">טוען את הלוח...</div>
 <script>
-var go=document.getElementById('go').href,seen=false,setup=/[?&]setup/.test(location.search);
-try{seen=localStorage.getItem('yachad_seen')==='1'}catch(e){}
-if(seen&&!setup){location.replace(go)}
-else{try{localStorage.setItem('yachad_seen','1')}catch(e){}}
+(function(){
+var EXEC='https://script.google.com/macros/s/AKfycbzCUiuq-UOI3A7BjGFiJmYDOuRp-hA0x927z90yHnghk6tRRScxyCCe3hIhbfVqkWimzA/exec';
+var CACHE='yachad_src_v1';
+
+// Imitates google.script.run so the board code works unchanged.
+function makeRun(ok,fail){
+  return new Proxy({}, {get:function(_,name){
+    if(name==='withSuccessHandler') return function(f){return makeRun(f,fail)};
+    if(name==='withFailureHandler') return function(f){return makeRun(ok,f)};
+    if(name==='withUserObject') return function(){return makeRun(ok,fail)};
+    return function(){
+      var args=Array.prototype.slice.call(arguments);
+      fetch(EXEC,{method:'POST',redirect:'follow',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body:JSON.stringify({fn:String(name),args:args})})
+      .then(function(r){return r.json()})
+      .then(function(d){
+        if(d&&d.error!==undefined&&d.error!==null){
+          var e=new Error(typeof d.error==='string'?d.error:(d.error.message||'error'));
+          if(fail)fail(e);
+        }else if(ok){ok(d?d.result:undefined)}
+      })
+      .catch(function(e){if(fail)fail(e)});
+    };
+  }});
+}
+window.google={script:{
+  get run(){return makeRun(null,null)},
+  url:{getLocation:function(cb){cb({hash:location.hash.replace(/^#/,''),parameter:{},parameters:{}})}},
+  history:{
+    replace:function(s,p,h){try{history.replaceState(null,'',(h!=null&&h!=='')?'#'+h:location.pathname+location.search)}catch(e){}},
+    push:function(s,p,h){try{history.pushState(null,'',(h!=null&&h!=='')?'#'+h:location.pathname+location.search)}catch(e){}},
+    setChangeHandler:function(){}
+  }
+}};
+
+function show(src){
+  document.open();
+  document.write(src);
+  document.close();
+  // document.write replaces <head>, so put the app tags back for "Add to Home Screen".
+  var h=[['link','manifest','manifest.webmanifest'],['link','apple-touch-icon','apple-touch-icon.png'],['link','icon','icon-512.png']];
+  h.forEach(function(x){var l=document.createElement('link');l.rel=x[1];l.href=x[2];document.head.appendChild(l)});
+  [['apple-mobile-web-app-capable','yes'],['mobile-web-app-capable','yes'],['apple-mobile-web-app-title','לוח פעילות'],['theme-color','#35173F']].forEach(function(x){
+    var m=document.createElement('meta');m.name=x[0];m.content=x[1];document.head.appendChild(m)});
+}
+
+function fromCache(){
+  try{var c=localStorage.getItem(CACHE);if(c){show(c);return true}}catch(e){}
+  return false;
+}
+
+fetch(EXEC+'?src=1',{redirect:'follow'})
+.then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.text()})
+.then(function(t){
+  try{localStorage.setItem(CACHE,t)}catch(e){}
+  show(t);
+})
+.catch(function(){
+  if(!fromCache()){document.getElementById('msg').textContent='לא הצלחנו לטעון את הלוח. בדקו חיבור לאינטרנט ונסו שוב.'}
+});
+})();
 </script>
 </body>
 </html>
